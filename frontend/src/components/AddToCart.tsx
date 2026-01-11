@@ -130,8 +130,8 @@ const handleAdd = async () => {
   return (
     <div className="space-y-3">
       {/* Pilih size */}
-      <div className="space-y-1">
-        <p className="text-md text-black">Size</p>
+      <div className="space-y-3">
+        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-600">Size</p>
         <div className="flex flex-wrap gap-2">
           {product.variants.map((v) => {
             const qtyInCart =
@@ -151,11 +151,11 @@ const handleAdd = async () => {
                   setQuantity(1);
                   setError(null);
                 }}
-                className={`rounded-sm px-3 py-1.5 text-sm relative ${
+                className={`rounded-2xl px-3 py-1.5 text-sm relative uppercase ${
                   selectedVariantId === v.id
-                    ? "border-2 border-black text-black"
-                    : "border-2 border-gray-300 bg-white text-black"
-                } ${availStock <= 0 ? "cursor-not-allowed opacity-40" : ""}`}
+                    ? "border-2 border-zinc-600 text-black"
+                    : "border-2 border-zinc-300 bg-white text-black hover:bg-zinc-200"
+                } ${availStock <= 0 ? "cursor-not-allowed " : ""}`}
               >
                 {v.size}
                 {availStock <= 0 && (
@@ -170,7 +170,7 @@ const handleAdd = async () => {
         
         {/* Stock info */}
         {selectedVariant && (
-          <p className="text-xs text-gray-600 mt-1">
+          <p className="text-[8px] md:text-[10px] font-black uppercase tracking-[0.3em] text-zinc-600 ">
             Stok tersedia: {availableStock}
             {currentQtyInCart > 0 && (
               <span className="text-emerald-600">
@@ -183,29 +183,27 @@ const handleAdd = async () => {
       </div>
 
       {/* Quantity */}
-      <div className="mt-6 flex items-center gap-2 text-md">
-        <span className="text-black">Jumlah</span>
+      <div className="py-6 flex items-center gap-2 text-md">
+        <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-600">Jumlah</span>
         <button
           type="button"
           onClick={() => handleQuantityChange(quantity - 1)}
           disabled={quantity <= 1}
-          className="h-8 w-7 rounded-md border border-slate-700 text-center disabled:opacity-40 disabled:cursor-not-allowed"
+          className="h-8 w-7 rounded-2xl border-2 border-zinc-600 text-center disabled:opacity-40 disabled:cursor-not-allowed"
         >
           -
         </button>
-        <input
-          type="number"
-          min={1}
-          max={maxQuantity}
-          value={quantity}
-          onChange={(e) => handleQuantityChange(Number(e.target.value) || 1)}
-          className="h-8 w-12 rounded-md border border-slate-700 bg-white text-center text-xs outline-none"
-        />
+          <div
+    className="h-8 w-12 rounded-2xl border-2 border-zinc-600 bg-white flex items-center justify-center text-xs font-black tabular-nums select-none"
+    aria-label={`Jumlah: ${quantity}`}
+  >
+    {quantity}
+  </div>
         <button
           type="button"
           onClick={() => handleQuantityChange(quantity + 1)}
           disabled={quantity >= maxQuantity}
-          className="h-8 w-7 rounded-md border border-slate-700 text-center disabled:opacity-40 disabled:cursor-not-allowed"
+          className="h-8 w-7 rounded-2xl border-2 border-zinc-600 text-center hover:bg-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           +
         </button>
@@ -223,13 +221,13 @@ const handleAdd = async () => {
         type="button"
         onClick={handleAdd}
         disabled={!selectedVariant || availableStock <= 0 || isAdding}
-        className="w-full rounded-md bg-emerald-500 px-3 py-2 text-xs font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full rounded-2xl bg-black p-3 text-[10px] font-black uppercase tracking-[0.3em] text-zinc-100 hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {isAdding
           ? "Menambahkan..."
           : availableStock <= 0
           ? "Stok habis"
-          : "Tambah ke keranjang"}
+          : "Add to Cart"}
       </button>
     </div>
   );

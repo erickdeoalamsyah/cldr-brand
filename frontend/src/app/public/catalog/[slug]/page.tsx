@@ -1,125 +1,93 @@
-"use client"
+"use client";
 
-import type React from "react"
-
-import { useEffect, useState } from "react"
-import { useParams } from "next/navigation"
-import Link from "next/link"
-import { api, type ApiResponse } from "@/lib/api"
-import { AddToCart } from "@/components/AddToCart"
-import { WishlistButton } from "@/components/WishlistButton"
-
-type ProductImage = {
-  id: number
-  url: string
-  alt: string | null
-  position: number
-}
-
-type ProductVariant = {
-  id: number
-  size: string
-  stock: number
-}
-
-type ProductDetail = {
-  id: number
-  name: string
-  slug: string
-  description: string | null
-  category?: { id: number; name: string; slug: string } | null
-  price: number
-  weight: number
-  images: ProductImage[]
-  variants: ProductVariant[]
-}
+import type React from "react";
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
+import Link from "next/link";
+import { api, type ApiResponse } from "@/lib/api";
+import { AddToCart } from "@/components/AddToCart";
+import { WishlistButton } from "@/components/WishlistButton";
+import { Lock, Check } from "lucide-react";
 
 export default function ProductDetailPage() {
-  const params = useParams<{ slug: string }>()
-  const slug = params.slug
+  const params = useParams<{ slug: string }>();
+  const slug = params.slug;
 
-  const [product, setProduct] = useState<ProductDetail | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [activeImageIndex, setActiveImageIndex] = useState(0)
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
-  const [isHovering, setIsHovering] = useState(false)
+  const [product, setProduct] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [isHovering, setIsHovering] = useState(false);
 
   useEffect(() => {
     const fetchDetail = async () => {
       try {
-        setLoading(true)
-        setError(null)
-
-        const res = await api.get<ApiResponse<ProductDetail>>(`/products/${slug}`)
-
-        setProduct(res.data)
-        setActiveImageIndex(0)
+        setLoading(true);
+        const res = await api.get<ApiResponse<any>>(`/products/${slug}`);
+        setProduct(res.data);
       } catch (err: any) {
-        console.error(err)
-        setError(err.message || "Gagal memuat detail produk.")
-        setProduct(null)
+        setError(err.message || "Gagal memuat produk");
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
-
-    if (slug) {
-      fetchDetail()
-    }
-  }, [slug])
+    };
+    if (slug) fetchDetail();
+  }, [slug]);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect()
-    const x = ((e.clientX - rect.left) / rect.width) * 100
-    const y = ((e.clientY - rect.top) / rect.height) * 100
-    setMousePosition({ x, y })
-  }
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    setMousePosition({ x, y });
+  };
 
-  if (loading) {
+  if (loading)
     return (
-      <div className="flex min-h-screen items-center justify-center bg-white">
-        <div className="space-y-3 text-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-200 border-t-gray-900 mx-auto" />
-          <p className="text-sm text-gray-600">Memuat produk...</p>
-        </div>
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-200 border-t-black" />
       </div>
-    )
-  }
+    );
 
-  if (error || !product) {
+  if (error || !product)
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-white">
-        <p className="mb-4 text-sm text-red-600">{error || "Produk tidak ditemukan."}</p>
-        <Link href="/catalog" className="text-sm font-medium text-gray-900 hover:underline">
-          Kembali ke catalog
+      <div className="flex min-h-[60vh] flex-col items-center justify-center p-6 text-center">
+        <p className="text-xs font-black uppercase tracking-widest text-red-500 mb-4">
+          {error || "Product Not Found"}
+        </p>
+        <Link
+          href="/public/catalog"
+          className="text-[10px] font-black uppercase underline tracking-tighter"
+        >
+          Back to Catalog
         </Link>
       </div>
-    )
-  }
+    );
 
-  const images = product.images ?? []
-  const activeImage = images[activeImageIndex]?.url
-  const hasStock = product.variants?.some((v) => v.stock > 0) ?? false
+  const images = product.images ?? [];
+  const activeImage = images[activeImageIndex]?.url;
+  const hasStock = product.variants?.some((v: any) => v.stock > 0) ?? false;
 
   return (
-    <main className="min-h-screen bg-white">
-      <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="grid gap-8 lg:grid-cols-2 lg:gap-12">
-          {/* Left: Image Gallery */}
-          <div className="space-y-4">
-            {/* Main Image with Zoom */}
+    <main className="min-h-screen bg-white pb-20">
+      <section className="mx-auto max-w-7xl py-10 px-4 sm:px-6 lg:px-8">
+        <div className="flex flex-col lg:grid lg:grid-cols-12 lg:gap-12">
+          {/* LEFT: GALLERY */}
+          <div className="lg:col-span-7 w-full space-y-4">
+            {/* Main Image - FIX: Added max-h for mobile to prevent offside */}
             <div
-              className="relative aspect-[1/1] w-full overflow-hidden rounded-lg bg-gray-100"
+              className="relative aspect-[4/3] w-full max-h-[50vh] sm:max-h-none overflow-hidden rounded-[2rem] bg-zinc-50 border border-zinc-100"
               onMouseMove={handleMouseMove}
               onMouseEnter={() => setIsHovering(true)}
               onMouseLeave={() => setIsHovering(false)}
             >
               {activeImage && (
                 <img
-                  src={activeImage || "/placeholder.svg"}
+                  src={activeImage}
                   alt={product.name}
-                  className={`h-full w-full object-cover transition-transform duration-300 ease-out ${isHovering ? "scale-150" : ""}`}
+                  className={`h-full w-full object-cover transition-transform duration-500 ease-out ${
+                    isHovering ? "scale-150" : "scale-100"
+                  }`}
                   style={
                     isHovering
                       ? {
@@ -131,88 +99,128 @@ export default function ProductDetailPage() {
               )}
             </div>
 
-            {/* Thumbnails */}
-            <div className="flex gap-3 overflow-x-auto pb-2">
-              {images.map((img, idx) => {
-                const thumbnailClass = `h-20 w-20 flex-shrink-0 overflow-hidden rounded-lg border-2 transition-all sm:h-24 sm:w-24 ${
-                  idx === activeImageIndex ? "border-gray-400" : "border-gray-200 hover:border-gray-400"
-                }`
-
+            {/* Thumbnails - FIX: Mobile friendly scroll & size */}
+            <div className="flex gap-3 overflow-x-auto pb-4 pt-2 snap-x snap-mandatory scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
+              {product.images.map((img: any, idx: number) => {
+                const isActive = idx === activeImageIndex;
                 return (
                   <button
                     key={img.id}
-                    type="button"
                     onClick={() => setActiveImageIndex(idx)}
-                    className={thumbnailClass}
+                    // snap-start: agar saat di-scroll otomatis berhenti pas di kotak thumbnail
+                    // Ukuran h-16 w-16 di mobile (HP) dan h-20 w-20 di Desktop
+                    className={`relative h-16 w-16 sm:h-20 sm:w-20 flex-shrink-0 snap-start overflow-hidden rounded-2xl transition-all duration-300 ${
+                      isActive ? " shadow-lg" : "opacity-100 hover:opacity-80"
+                    }`}
                   >
                     <img
-                      src={img.url || "/placeholder.svg"}
-                      alt={img.alt || product.name}
+                      src={img.url}
                       className="h-full w-full object-cover"
+                      alt="thumb"
                     />
+
+                    {/* Centang Overlay saat Aktif */}
+                    {isActive && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/5 backdrop-blur-[1px]">
+                        <div className="bg-emerald-400 rounded-full p-1 shadow-xl animate-in zoom-in-50 duration-300">
+                          <Check
+                            size={12}
+                            className="text-emerald-800 sm:size-[14px]"
+                            strokeWidth={4}
+                          />
+                        </div>
+                      </div>
+                    )}
                   </button>
-                )
+                );
               })}
             </div>
           </div>
 
-          {/* Right: Product Details */}
-          <div className="space-y-3">
-            {/* Stock Badge */}
-            {hasStock && (
-              <div className="inline-block">
-                <span className="rounded bg-gray-900 px-3 py-1 text-xs font-semibold text-white">Ada Stok</span>
+          {/* RIGHT: DETAILS */}
+          <div className="lg:col-span-5 flex flex-col gap-6 sm:gap-8 mt-4 lg:mt-0">
+            <div className="space-y-4 mt-4">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-600">
+                  {product.category?.name}
+                </span>
+                {hasStock ? (
+                  <span className="text-[9px] font-black uppercase tracking-widest text-green-600 px-2 py-1 bg-green-50 rounded-md">
+                    In_Stock
+                  </span>
+                ) : (
+                  <span className="text-[9px] font-black uppercase tracking-widest text-red-600 px-2 py-1 bg-red-50 rounded-md">
+                    Sold_Out
+                  </span>
+                )}
               </div>
-            )}
 
-            {/* Product Title & Price */}
-            <div>
-              <h1 className="text-xl font-semibold uppercase text-gray-900 sm:text-3xl">{product.name}</h1>
-              <div className="mt-3 flex items-center justify-between">
-                <p className="text-xl font-semibold text-gray-900">Rp {product.price.toLocaleString("id-ID")}</p>
+              <h1 className="text-lg md:text-2xl uppercase  text-zinc-600">
+                {product.name}
+              </h1>
+
+              <div className="flex items-center justify-between ">
+                <p className=" text-lg md:text-2xl font-semibold tracking-tighter text-zinc-900">
+                  Rp {product.price.toLocaleString("id-ID")}
+                </p>
                 <WishlistButton productId={product.id} />
               </div>
             </div>
 
-            {/* Add to Cart Component */}
-            {hasStock ? (
-              <AddToCart
-                product={{
-                  id: product.id,
-                  name: product.name,
-                  slug: product.slug,
-                  price: product.price,
-                  images: product.images,
-                  variants: product.variants || [],
-                }}
-              />
-            ) : (
-              <div className="rounded-lg border-2 border-red-200 bg-red-50 p-4 text-center">
-                <p className="text-sm font-medium text-red-600">Stok produk ini sedang habis.</p>
-              </div>
-            )}
+            {/* ADD TO CART COMPONENT */}
+            <div className="w-full ">
+              {hasStock ? (
+                <AddToCart
+                  product={{
+                    id: product.id,
+                    name: product.name,
+                    slug: product.slug,
+                    price: product.price,
+                    images: product.images,
+                    variants: product.variants || [],
+                  }}
+                />
+              ) : (
+                <div className="w-full py-4 border-2 border-dashed border-zinc-200 rounded-2xl text-center">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 italic">
+                    Inventory_Depleted
+                  </p>
+                </div>
+              )}
+            </div>
 
-            {/* Product Description */}
-            {product.description && (
-              <div className="border-t border-gray-200 pt-6">
-                <p className="text-sm leading-relaxed text-gray-700">{product.description}</p>
+            {/* INFO SECTION */}
+            <div className="border-t-2 border-zinc-300 pt-8 space-y-6">
+              <div className="grid grid-cols-2 gap-8 border-t border-zinc-50">
+                <div className="space-y-1">
+                  <h4 className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-400">
+                    Unit_Weight
+                  </h4>
+                  <p className="text-xs font-bold">{product.weight} GR</p>
+                </div>
+                <div className="space-y-1">
+                  <h4 className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-400">
+                    Security
+                  </h4>
+                  <div className="flex items-center gap-1 text-xs font-bold uppercase">
+                    <Lock size={10} /> Verified
+                  </div>
+                </div>
               </div>
-            )}
-
-            {/* Additional Info */}
-            <div className="space-y-2 border-t border-gray-200 pt-6 text-sm text-gray-600">
-              <p>
-                <span className="font-medium">Berat:</span> {product.weight} gr
-              </p>
-              {product.category && typeof product.category !== "string" && (
-                <p>
-                  <span className="font-medium">Kategori:</span> {product.category.name}
-                </p>
+              {product.description && (
+                <div className="space-y-2">
+                  <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-900">
+                    Description
+                  </h4>
+                  <p className="text-[11px] font-black leading-relaxed text-zinc-500 ">
+                    {product.description}
+                  </p>
+                </div>
               )}
             </div>
           </div>
         </div>
       </section>
     </main>
-  )
+  );
 }
