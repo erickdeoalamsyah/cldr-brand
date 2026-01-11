@@ -1,30 +1,25 @@
-import { prisma } from "../../config/db"
+import { prisma } from "../../config/db";
+import { badRequestError, conflictError, notFoundError } from "../../utils/appError";
 
 type CartItemInput = {
-  productId: number
-  variantId: number // ✅ wajib sesuai schema
-  quantity: number
-  price?: number // optional kalau nanti mau snapshot
-}
+  productId: number;
+  variantId: number;
+  quantity: number;
+  price?: number;
+};
 
-/**
- * Pastikan user selalu punya cart (1 user 1 cart).
- */
 async function getOrCreateCart(userId: number) {
-  let cart = await prisma.cart.findUnique({ where: { userId } })
+  let cart = await prisma.cart.findUnique({ where: { userId } });
 
   if (!cart) {
-    cart = await prisma.cart.create({ data: { userId } })
+    cart = await prisma.cart.create({ data: { userId } });
   }
 
-  return cart
+  return cart;
 }
 
-/**
- * Ambil cart + item lengkap untuk user (dipakai GET /cart & setelah update).
- */
 export async function getUserCart(userId: number) {
-  const cart = await getOrCreateCart(userId)
+  const cart = await getOrCreateCart(userId);
 
   const items = await prisma.cartItem.findMany({
     where: { cartId: cart.id },
@@ -43,140 +38,201 @@ export async function getUserCart(userId: number) {
         },
       },
       variant: {
+        // RECOMMENDED: include stock for UI (optional)
         select: {
           id: true,
           size: true,
+          stock: true,
+          productId: true,
         },
       },
     },
-  })
+  });
 
-  return { cartId: cart.id, items }
+  // Kalau kamu tidak mau mengubah response shape sekarang,
+  // kamu bisa map ulang variant untuk buang stock/productId.
+  // Tapi untuk best practice cart UI, stock di cart response sangat membantu.
+  return { cartId: cart.id, items };
 }
 
 /**
- * Tambah / update satu item cart user.
- * - kalau belum ada → create
- * - kalau ada → update quantity
- * - kalau quantity <= 0 → hapus
+ * Helper: validasi input numeric
+ */
+function assertFiniteNumber(value: any, fieldName: string): number {
+  const n = Number(value);
+  if (!Number.isFinite(n)) throw badRequestError(`${fieldName} tidak valid.`);
+  return n;
+}
+
+/**
+ * Helper: cek variant + stok
+ */
+async function getAndValidateVariant(productId: number, variantId: number) {
+  const variant = await prisma.productVariant.findUnique({
+    where: { id: variantId },
+    select: { id: true, productId: true, stock: true, size: true },
+  });
+
+  if (!variant) {
+    throw notFoundError("Variant tidak ditemukan.", "VARIANT_NOT_FOUND");
+  }
+
+  if (variant.productId !== productId) {
+    // penting untuk mencegah item “nyasar” ke product lain
+    throw badRequestError("variantId tidak sesuai dengan productId.", "VARIANT_PRODUCT_MISMATCH");
+  }
+
+  return variant;
+}
+
+/**
+ * Upsert item cart user dengan VALIDASI STOK di server.
+ * - quantity <= 0 => delete
+ * - quantity > stock => 409 Conflict
  */
 export async function upsertCartItem(userId: number, input: CartItemInput) {
-  const cart = await getOrCreateCart(userId)
+  const cart = await getOrCreateCart(userId);
 
-  // guard basic
-  if (!input.productId || !input.variantId) {
-    throw new Error("productId dan variantId wajib diisi.")
-  }
-  if (!Number.isFinite(input.quantity)) {
-    throw new Error("quantity tidak valid.")
-  }
+  const productId = assertFiniteNumber(input.productId, "productId");
+  const variantId = assertFiniteNumber(input.variantId, "variantId");
+  const quantity = assertFiniteNumber(input.quantity, "quantity");
+
+  if (productId <= 0) throw badRequestError("productId wajib diisi.");
+  if (variantId <= 0) throw badRequestError("variantId wajib diisi.");
 
   const key = {
     cartId: cart.id,
-    productId: input.productId,
-    variantId: input.variantId,
+    productId,
+    variantId,
+  };
+
+  // delete
+  if (quantity <= 0) {
+    await prisma.cartItem.deleteMany({ where: key });
+    return getUserCart(userId);
   }
 
-  if (input.quantity <= 0) {
-    await prisma.cartItem.deleteMany({ where: key })
-    return getUserCart(userId)
+  // VALIDASI STOK
+  const variant = await getAndValidateVariant(productId, variantId);
+
+  if (variant.stock <= 0) {
+    throw conflictError(`Stok size ${variant.size} sudah habis.`, "OUT_OF_STOCK");
   }
 
-  const existing = await prisma.cartItem.findFirst({ where: key })
+  if (quantity > variant.stock) {
+    throw conflictError(
+      `Stok tersedia untuk size ${variant.size}: ${variant.stock}. Quantity diminta: ${quantity}.`,
+      "INSUFFICIENT_STOCK"
+    );
+  }
+
+  const existing = await prisma.cartItem.findFirst({ where: key });
 
   if (!existing) {
     await prisma.cartItem.create({
       data: {
         cartId: cart.id,
-        productId: input.productId,
-        variantId: input.variantId,
-        quantity: input.quantity,
-        // price: input.price ?? 0, // kalau kamu sudah pakai snapshot price
+        productId,
+        variantId,
+        quantity,
       },
-    })
+    });
   } else {
     await prisma.cartItem.update({
       where: { id: existing.id },
-      data: { quantity: input.quantity },
-    })
+      data: { quantity },
+    });
   }
 
-  return getUserCart(userId)
+  return getUserCart(userId);
 }
 
 /**
- * Sinkronisasi cart guest → cart user setelah login.
- * guestItems: daftar { productId, variantId, quantity }
+ * Sync guest -> user cart
+ *
+ * Best practice:
+ * - Jangan bikin login gagal cuma gara-gara 1 item invalid.
+ * - Maka strategi aman: CLAMP qty ke stok (atau skip kalau stok 0).
+ * - Ini juga menghindari konflik UX.
  */
 export async function syncCart(userId: number, guestItems: CartItemInput[]) {
-  const cart = await getOrCreateCart(userId)
+  const cart = await getOrCreateCart(userId);
 
   if (!guestItems || guestItems.length === 0) {
-    return getUserCart(userId)
+    return getUserCart(userId);
   }
 
-  // Ambil semua item yang sudah ada di cart user
   const existingItems = await prisma.cartItem.findMany({
     where: { cartId: cart.id },
-  })
+    select: { id: true, productId: true, variantId: true, quantity: true },
+  });
 
-  // Map untuk cek apakah kombinasi productId+variantId sudah ada
-  const existingMap = new Map<string, { id: number; quantity: number }>()
+  const existingMap = new Map<string, { id: number; quantity: number }>();
   for (const item of existingItems) {
-    existingMap.set(`${item.productId}:${item.variantId}`, { id: item.id, quantity: item.quantity })
+    existingMap.set(`${item.productId}:${item.variantId}`, { id: item.id, quantity: item.quantity });
   }
 
   for (const gi of guestItems) {
-    // guard
-    if (!gi.productId || !gi.variantId || !gi.quantity) continue
-    if (gi.quantity <= 0) continue
+    const productId = Number(gi.productId);
+    const variantId = Number(gi.variantId);
+    const quantity = Number(gi.quantity);
 
-    const mapKey = `${gi.productId}:${gi.variantId}`
-    const found = existingMap.get(mapKey)
+    if (!Number.isFinite(productId) || productId <= 0) continue;
+    if (!Number.isFinite(variantId) || variantId <= 0) continue;
+    if (!Number.isFinite(quantity) || quantity <= 0) continue;
 
-    // best practice sync: kalau sudah ada, biarkan qty server (atau kamu bisa tambah qty, pilih salah satu)
-    // di sini aku ikuti logika kamu: kalau sudah ada, skip (jangan double)
-    if (found) continue
+    const mapKey = `${productId}:${variantId}`;
+    const found = existingMap.get(mapKey);
+    if (found) continue; // kamu memilih "server wins"
+
+    // VALIDASI VARIANT + STOCK
+    const variant = await prisma.productVariant.findUnique({
+      where: { id: variantId },
+      select: { id: true, productId: true, stock: true, size: true },
+    });
+
+    if (!variant) continue;
+    if (variant.productId !== productId) continue;
+
+    if (variant.stock <= 0) continue;
+
+    const finalQty = Math.min(quantity, variant.stock);
+    if (finalQty <= 0) continue;
 
     await prisma.cartItem.create({
       data: {
         cartId: cart.id,
-        productId: gi.productId,
-        variantId: gi.variantId,
-        quantity: gi.quantity,
-        // price: gi.price ?? 0,
+        productId,
+        variantId,
+        quantity: finalQty,
       },
-    })
+    });
 
-    // update map local supaya loop aman
-    existingMap.set(mapKey, { id: -1, quantity: gi.quantity })
+    existingMap.set(mapKey, { id: -1, quantity: finalQty });
   }
 
-  return getUserCart(userId)
+  return getUserCart(userId);
 }
 
 export async function removeCartItem(userId: number, itemId: number) {
-  const cart = await getOrCreateCart(userId)
+  const cart = await getOrCreateCart(userId);
 
   await prisma.cartItem.deleteMany({
     where: {
       id: itemId,
       cartId: cart.id,
     },
-  })
+  });
 
-  return getUserCart(userId)
+  return getUserCart(userId);
 }
 
-/**
- * Pastikan fungsi ini dipanggil di tempat yang tepat (Checkout atau Webhook)
- */
 export async function clearCart(userId: number) {
-  const cart = await getOrCreateCart(userId)
+  const cart = await getOrCreateCart(userId);
 
   await prisma.cartItem.deleteMany({
     where: { cartId: cart.id },
-  })
+  });
 
-  return getUserCart(userId)
+  return getUserCart(userId);
 }

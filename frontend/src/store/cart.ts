@@ -18,6 +18,7 @@ export type ServerCartItem = {
   variant: {
     id: number;
     size: string;
+    stock: number;
   } | null;
 };
 
@@ -36,6 +37,7 @@ export type CartItemLocal = {
   price: number;
   size?: string | null;
   imageUrl?: string | null;
+  variantStock?: number | null;
 
   serverItemId?: number;
 };
@@ -88,6 +90,7 @@ export const useCartStore = create<CartState>()(
           price: ci.product.price,
           size: ci.variant?.size,
           imageUrl: ci.product.images?.[0]?.url ?? null,
+          variantStock: ci.variant?.stock ?? null,
           serverItemId: ci.id,
         }));
 
