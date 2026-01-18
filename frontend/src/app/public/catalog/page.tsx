@@ -203,7 +203,7 @@ export default function CatalogPage() {
           <main className="flex-1">
             {/* Header */}
             <div className="mb-6 flex items-center justify-between">
-              <h1 className="text-sm font-semibold uppercase text-gray-900 md:text-xl">
+              <h1 className="text-sm tracking-[0.2em] font-semibold uppercase text-gray-900 md:text-xl">
                 {productType === "featured"
                   ? "Produk Unggulan"
                   : "Semua Produk"}
@@ -432,7 +432,7 @@ export default function CatalogPage() {
                 className={`w-full rounded-lg px-4 py-3 text-left text-sm font-medium transition-colors ${
                   sort === opt.value
                     ? "bg-gray-900 text-white"
-                    : "bg-white text-gray-900 hover:bg-gray-50"
+                    : "bg-white text-gray-900 hover:bg-gray-300"
                 }`}
               >
                 {opt.label}
