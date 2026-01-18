@@ -182,7 +182,7 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
       />
       
       {/* Modal Container */}
-      <div className="relative w-full max-w-[450px] overflow-hidden rounded-[2.5rem]   bg-white ">
+      <div className="relative w-full max-w-[450px] overflow-hidden rounded-[2.5rem] ">
         
         {/* Header Area */}
         <div className="bg-black p-8 text-white relative">
@@ -193,7 +193,7 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
             <X size={20} strokeWidth={2.5} />
           </button>
           
-          <h2 className="text-3xl font-black uppercase italic tracking-tighter">
+          <h2 className="text-xl md:text-3xl font-black uppercase italic tracking-tighter">
             {mode === "login" ? "Welcome Back" : mode === "register" ? "Join the Club" : "Security"}
           </h2>
           <p className="mt-2 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
@@ -205,7 +205,7 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
         </div>
 
         {/* Form Area */}
-        <div className="p-8">
+        <div className="p-8 bg-white">
           {error && (
             <div className="mb-6 flex items-center gap-3 rounded-2xl border-2 border-red-100 bg-red-50 p-4 text-xs font-bold text-red-600 animate-in slide-in-from-top-2">
               <AlertCircle size={16} />
@@ -240,7 +240,7 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
             <div className="group space-y-2">
               <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 group-focus-within:text-black transition-colors">Email Address</label>
               <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-300 group-focus-within:text-black transition-colors" size={18} />
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-black transition-colors" size={18} />
                 <input
                   type="email"
                   className="w-full rounded-2xl border-2 border-zinc-100 bg-zinc-50 py-4 pl-12 pr-4 text-sm font-bold outline-none transition-all focus:border-black focus:bg-white"
@@ -260,7 +260,7 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
                   )}
                 </div>
                 <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-300 group-focus-within:text-black transition-colors" size={18} />
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-black transition-colors" size={18} />
                   <input
                     type="password"
                     className="w-full rounded-2xl border-2 border-zinc-100 bg-zinc-50 py-4 pl-12 pr-4 text-sm font-bold outline-none transition-all focus:border-black focus:bg-white"
@@ -268,6 +268,7 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
                   />
+                  
                 </div>
               </div>
             )}
